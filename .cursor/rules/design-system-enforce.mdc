@@ -1,0 +1,24 @@
+---
+description: FiCo AI tasarım sistemini her görevde zorunlu uygula
+globs: /frontend
+alwaysApply: false
+---
+
+# FiCo AI Design System (Always Apply)
+
+Bu projede UI/UX ile ilgili her üretimde tek kaynak `/.cursor/rules/design-system.md` dosyasıdır.
+
+## Zorunlu Kurallar
+
+- Yeni bileşen, ekran, stil veya tasarım kararı üretmeden önce `design-system.md` kurallarını referans al.
+- Renk, tipografi, spacing, radius, breakpoint ve component varyantlarında doküman dışına çıkma.
+- Token bazlı kullanım yap; hardcoded değerleri (renk, boşluk, radius, boyut) yalnızca dokümanda tanımlıysa kullan.
+- Mobil-first ve responsive yaklaşımı varsayılan kabul et.
+- Erişilebilirlik kurallarını (kontrast, focus, touch target, reduced-motion) ihmal etme.
+- Tasarım sistemiyle çelişen isteklerde kullanıcıdan açık onay iste veya alternatifleri sistemle uyumlu şekilde sun.
+
+## Uygulama Davranışı
+
+- UI kodu yazarken önce ilgili tasarım sistemi bölümlerini kontrol et, sonra implement et.
+- Kararsız kaldığında en güncel ve daha kısıtlayıcı tasarım sistemi kuralını tercih et.
+- Bu rule, proje genelinde her zaman geçerlidir.
