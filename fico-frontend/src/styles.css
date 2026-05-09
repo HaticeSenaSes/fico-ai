@@ -954,3 +954,122 @@ button:disabled {
 
 .tl-amount.pos { color: #10B981; }
 .tl-amount.neg { color: #EF4444; }
+
+/* ── Income ── */
+.inc-summary-card {
+  background: #0EA5B0;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.inc-summary-amount {
+  font-size: 36px;
+  font-weight: 500;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.inc-summary-label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+}
+
+.inc-summary-sources {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 4px;
+}
+
+.inc-confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #EFF3F5;
+}
+
+.inc-confirm-row:last-child { border-bottom: none; }
+
+.inc-confirm-info { flex: 1; }
+.inc-confirm-name { font-size: 14px; font-weight: 500; color: #1E3A5F; }
+.inc-confirm-amount { font-size: 12px; color: #94A3B4; margin-top: 2px; }
+
+.inc-confirm-btn {
+  width: auto;
+  height: 32px;
+  padding: 0 16px;
+  background: #E0F7F8;
+  color: #0B8A94;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+
+.inc-confirm-btn:hover { background: #0EA5B0; color: white; }
+.inc-confirm-btn.confirmed { background: #D1FAE5; color: #065f46; }
+
+.inc-source-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #EFF3F5;
+}
+
+.inc-source-row:last-child { border-bottom: none; }
+
+.inc-source-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #D1FAE5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.inc-source-info { flex: 1; }
+.inc-source-name { font-size: 14px; font-weight: 500; color: #1E3A5F; }
+.inc-source-meta { font-size: 12px; color: #94A3B4; margin-top: 2px; }
+
+.inc-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.inc-toggle input { display: none; }
+
+.inc-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #D9E2E8;
+  border-radius: 99px;
+  transition: 0.2s;
+}
+
+.inc-toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.inc-toggle input:checked + .inc-toggle-slider { background: #0EA5B0; }
+.inc-toggle input:checked + .inc-toggle-slider::before { transform: translateX(20px); }

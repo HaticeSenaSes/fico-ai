@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import { QuickExpense } from "./QuickExpense";
 import { TransactionList } from "./TransactionList";
+import { Income } from "./Income";
 
 type DashboardProps = {
   onLogout: () => void;
@@ -39,21 +40,20 @@ const RECENT = [
 export function Dashboard({ onLogout }: DashboardProps) {
   const [showExpense, setShowExpense] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
+  const [showIncome, setShowIncome] = useState(false);
 
-  if (showTransactions) {
-    return <TransactionList onBack={() => setShowTransactions(false)} />;
-  }
+  if (showTransactions) return <TransactionList onBack={() => setShowTransactions(false)} />;
+  if (showIncome) return <Income onBack={() => setShowIncome(false)} />;
 
   return (
     <div className="dash-root">
 
-      {/* ── Üst Nav ── */}
       <nav className="dash-nav">
         <div className="dash-nav-logo">FiCo AI</div>
         <div className="dash-nav-links">
           <span className="dash-nav-item active">Ana Sayfa</span>
           <span className="dash-nav-item" onClick={() => setShowTransactions(true)}>Giderler</span>
-          <span className="dash-nav-item">Gelir</span>
+          <span className="dash-nav-item" onClick={() => setShowIncome(true)}>Gelir</span>
           <span className="dash-nav-item">Hedefler</span>
         </div>
         <div className="dash-nav-right">
@@ -64,7 +64,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
       <main className="dash-main">
 
-        {/* Karşılama */}
         <div className="dash-header">
           <div>
             <h1 className="dash-greeting">Merhaba 👋</h1>
@@ -75,7 +74,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
           </button>
         </div>
 
-        {/* Özet Kartlar */}
         <div className="dash-metrics">
           <div className="dash-metric-card">
             <div className="dash-metric-label">Net Bakiye</div>
@@ -99,7 +97,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
           </div>
         </div>
 
-        {/* Bütçe Durum Şeridi */}
         <div className="dash-status-bar">
           <div className="dash-status-label">
             <span>Bütçe Durumu</span>
@@ -111,10 +108,8 @@ export function Dashboard({ onLogout }: DashboardProps) {
           <div className="dash-progress-hint">%37 kullanıldı · ₺1.280 / ₺3.500</div>
         </div>
 
-        {/* Grafik Grid */}
         <div className="dash-grid">
 
-          {/* Haftalık Bar Grafik */}
           <div className="dash-card">
             <div className="dash-card-header">
               <span className="dash-card-title">Haftalık Harcama</span>
@@ -122,21 +117,11 @@ export function Dashboard({ onLogout }: DashboardProps) {
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={weeklyData} barSize={28}>
-                <XAxis
-                  dataKey="gun"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#94A3B4" }}
-                />
+                <XAxis dataKey="gun" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94A3B4" }} />
                 <YAxis hide />
                 <Tooltip
-                formatter={(value: any) => [`₺${value}`, "Harcama"]}
-                contentStyle={{
-                  background: "#fff",
-                  border: "1px solid #D9E2E8",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
+                  formatter={(value: any) => [`₺${value}`, "Harcama"]}
+                  contentStyle={{ background: "#fff", border: "1px solid #D9E2E8", borderRadius: 8, fontSize: 12 }}
                   cursor={{ fill: "#f0fbfc" }}
                 />
                 <Bar dataKey="tutar" fill="#0EA5B0" radius={[6, 6, 0, 0]} />
@@ -144,7 +129,6 @@ export function Dashboard({ onLogout }: DashboardProps) {
             </ResponsiveContainer>
           </div>
 
-          {/* Kategori Pasta Grafik */}
           <div className="dash-card">
             <div className="dash-card-header">
               <span className="dash-card-title">Kategoriler</span>
@@ -153,66 +137,35 @@ export function Dashboard({ onLogout }: DashboardProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={70}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                    {categoryData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip
                     formatter={(value: any) => [`₺${value}`, ""]}
-                    contentStyle={{
-                      background: "#fff",
-                      border: "1px solid #D9E2E8",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
+                    contentStyle={{ background: "#fff", border: "1px solid #D9E2E8", borderRadius: 8, fontSize: 12 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ flex: 1 }}>
                 {categoryData.map((cat) => (
-                  <div
-                    key={cat.name}
-                    style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
-                  >
-                    <div style={{
-                      width: 10, height: 10, borderRadius: "50%",
-                      background: cat.color, flexShrink: 0
-                    }} />
+                  <div key={cat.name} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color, flexShrink: 0 }} />
                     <span style={{ fontSize: 12, color: "#4E6478", flex: 1 }}>{cat.name}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "#1E3A5F" }}>
-                      ₺{cat.value}
-                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: "#1E3A5F" }}>₺{cat.value}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Son İşlemler */}
           <div className="dash-card">
             <div className="dash-card-header">
               <span className="dash-card-title">Son İşlemler</span>
-              <span className="dash-card-link" onClick={() => setShowTransactions(true)}>
-                Tümünü Gör
-              </span>
+              <span className="dash-card-link" onClick={() => setShowTransactions(true)}>Tümünü Gör</span>
             </div>
             {RECENT.map((tx, i) => (
-              <div
-                key={tx.id}
-                className={`tl-row${i < RECENT.length - 1 ? " bordered" : ""}`}
-              >
-                <div className="tl-cat-icon" style={{ background: tx.color }}>
-                  {tx.icon}
-                </div>
+              <div key={tx.id} className={`tl-row${i < RECENT.length - 1 ? " bordered" : ""}`}>
+                <div className="tl-cat-icon" style={{ background: tx.color }}>{tx.icon}</div>
                 <div className="tl-info">
                   <div className="tl-name">{tx.name}</div>
                   <div className="tl-meta">{tx.cat}</div>
@@ -224,28 +177,18 @@ export function Dashboard({ onLogout }: DashboardProps) {
             ))}
           </div>
 
-          {/* AI İçgörü */}
           <div className="dash-card dash-insight-card">
             <div className="dash-card-header">
               <span className="dash-card-title">✨ AI İçgörü</span>
             </div>
             <div style={{ padding: "8px 0 12px" }}>
               <p style={{ fontSize: 14, color: "#1E3A5F", lineHeight: 1.6, marginBottom: 12 }}>
-                <strong>Cuma akşamları</strong> harcaman hafta ortasına göre <strong style={{ color: "#EF4444" }}>2.4x</strong> daha yüksek. Bu ay yemek kategorisinde geçen aya göre %18 artış var.
+                <strong>Cuma akşamları</strong> harcaman hafta ortasına göre{" "}
+                <strong style={{ color: "#EF4444" }}>2.4x</strong> daha yüksek. Bu ay yemek kategorisinde geçen aya göre %18 artış var.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
-                <button style={{
-                  width: "auto", height: 32, padding: "0 14px",
-                  background: "#E0F7F8", color: "#0B8A94",
-                  border: "none", borderRadius: 6, fontSize: 13,
-                  cursor: "pointer", fontFamily: "DM Sans, sans-serif"
-                }}>👍</button>
-                <button style={{
-                  width: "auto", height: 32, padding: "0 14px",
-                  background: "#EFF3F5", color: "#4E6478",
-                  border: "none", borderRadius: 6, fontSize: 13,
-                  cursor: "pointer", fontFamily: "DM Sans, sans-serif"
-                }}>👎</button>
+                <button style={{ width: "auto", height: 32, padding: "0 14px", background: "#E0F7F8", color: "#0B8A94", border: "none", borderRadius: 6, fontSize: 13, cursor: "pointer", fontFamily: "DM Sans, sans-serif" }}>👍</button>
+                <button style={{ width: "auto", height: 32, padding: "0 14px", background: "#EFF3F5", color: "#4E6478", border: "none", borderRadius: 6, fontSize: 13, cursor: "pointer", fontFamily: "DM Sans, sans-serif" }}>👎</button>
               </div>
             </div>
             <div className="dash-insight-progress">
@@ -257,38 +200,18 @@ export function Dashboard({ onLogout }: DashboardProps) {
           </div>
 
         </div>
-
       </main>
 
-      {/* Mobil Alt Nav */}
       <nav className="dash-bottom-nav">
-        <div className="dash-bottom-item active">
-          <span>🏠</span>
-          <span>Ana Sayfa</span>
-        </div>
-        <div className="dash-bottom-item" onClick={() => setShowTransactions(true)}>
-          <span>💸</span>
-          <span>Giderler</span>
-        </div>
-        <div className="dash-bottom-item">
-          <span>💰</span>
-          <span>Gelir</span>
-        </div>
-        <div className="dash-bottom-item">
-          <span>🎯</span>
-          <span>Hedefler</span>
-        </div>
-        <div className="dash-bottom-item">
-          <span>👤</span>
-          <span>Profil</span>
-        </div>
+        <div className="dash-bottom-item active"><span>🏠</span><span>Ana Sayfa</span></div>
+        <div className="dash-bottom-item" onClick={() => setShowTransactions(true)}><span>💸</span><span>Giderler</span></div>
+        <div className="dash-bottom-item" onClick={() => setShowIncome(true)}><span>💰</span><span>Gelir</span></div>
+        <div className="dash-bottom-item"><span>🎯</span><span>Hedefler</span></div>
+        <div className="dash-bottom-item"><span>👤</span><span>Profil</span></div>
       </nav>
 
       {showExpense && (
-        <QuickExpense
-          onClose={() => setShowExpense(false)}
-          onSaved={() => setShowExpense(false)}
-        />
+        <QuickExpense onClose={() => setShowExpense(false)} onSaved={() => setShowExpense(false)} />
       )}
 
     </div>

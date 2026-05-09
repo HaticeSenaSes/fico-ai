@@ -7,7 +7,7 @@ import { Dashboard } from "./Dashboard";
 type Route = "/register" | "/login" | "/onboarding" | "/dashboard";
 
 export function App() {
-  const [route, setRoute] = useState<Route>("/register");
+  const [route, setRoute] = useState<Route>("/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
