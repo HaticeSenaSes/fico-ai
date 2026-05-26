@@ -5,25 +5,15 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, SafeAreaView
 } from 'react-native';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { ThemeProvider, useTheme } from './ThemeContext';
+
+const API_URL = 'http://127.0.0.1:8001/api/v1';
 
 type Route = 'register' | 'login' | 'dashboard';
 
-const C = {
-  primary: '#0EA5B0',
-  primaryDark: '#0B8A94',
-  primaryLight: '#E0F7F8',
-  navy: '#1E3A5F',
-  bg: '#F0FBFC',
-  border: '#D9E2E8',
-  textSecondary: '#4E6478',
-  textMuted: '#94A3B4',
-  danger: '#EF4444',
-  success: '#10B981',
-  white: '#FFFFFF',
-};
-
-export default function App() {
-  const [route, setRoute] = useState<Route>('dashboard');
+function AppContent() {
+  const { theme: C, isDark } = useTheme();
+  const [route, setRoute] = useState<Route>('register');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,12 +33,12 @@ export default function App() {
       <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-            <Text style={s.logo}>FiCo AI</Text>
-            <Text style={s.subtitle}>Tekrar hos geldin</Text>
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Giris Yap</Text>
+            <Text style={[s.logo, { color: C.primary }]}>FiCo AI</Text>
+            <Text style={[s.subtitle, { color: C.textSecondary }]}>Tekrar hoş geldin</Text>
+            <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+              <Text style={[s.cardTitle, { color: C.textPrimary }]}>Giriş Yap</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
                 placeholder="Email"
                 placeholderTextColor={C.textMuted}
                 value={loginEmail}
@@ -57,39 +47,50 @@ export default function App() {
                 autoCapitalize="none"
               />
               <TextInput
-                style={s.input}
-                placeholder="Sifre"
+                style={[s.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+                placeholder="Şifre"
                 placeholderTextColor={C.textMuted}
                 value={loginPassword}
                 onChangeText={t => { setLoginPassword(t); setError(''); }}
                 secureTextEntry
               />
               <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
-                <Text style={s.link}>Sifremi unuttum</Text>
+                <Text style={[s.link, { color: C.primary }]}>Şifremi unuttum</Text>
               </TouchableOpacity>
               {error ? <Text style={s.error}>{error}</Text> : null}
               <TouchableOpacity
-                style={s.btn}
-                onPress={() => {
-                  if (!loginEmail || !loginPassword) {
-                    setError('Email ve sifre zorunludur.');
-                    return;
+                style={[s.btn, { backgroundColor: C.primary }]}
+                onPress={async () => {
+                  if (!loginEmail || !loginPassword) { setError('Email ve şifre zorunludur.'); return; }
+                  try {
+                    const res = await fetch(`${API_URL}/auth/login`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setRoute('dashboard');
+                    } else {
+                      setError(data.detail?.message || 'Email veya şifre hatalı.');
+                    }
+                  } catch {
+                    setError('Sunucuya bağlanılamadı.');
                   }
-                  setRoute('dashboard');
                 }}
               >
-                <Text style={s.btnText}>Giris Yap</Text>
+                <Text style={s.btnText}>Giriş Yap</Text>
               </TouchableOpacity>
             </View>
             <View style={s.switchRow}>
-              <Text style={s.switchText}>Hesabin yok mu? </Text>
+              <Text style={[s.switchText, { color: C.textSecondary }]}>Hesabın yok mu? </Text>
               <TouchableOpacity onPress={() => setRoute('register')}>
-                <Text style={s.link}>Kayit Ol</Text>
+                <Text style={[s.link, { color: C.primary }]}>Kayıt Ol</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
       </SafeAreaView>
     );
   }
@@ -98,19 +99,19 @@ export default function App() {
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={s.logo}>FiCo AI</Text>
-          <Text style={s.subtitle}>Finansal ozgurluğune hos geldin</Text>
-          <View style={s.card}>
-            <Text style={s.cardTitle}>Hesap Olustur</Text>
+          <Text style={[s.logo, { color: C.primary }]}>FiCo AI</Text>
+          <Text style={[s.subtitle, { color: C.textSecondary }]}>Finansal özgürlüğüne hoş geldin</Text>
+          <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Text style={[s.cardTitle, { color: C.textPrimary }]}>Hesap Oluştur</Text>
             <TextInput
-              style={s.input}
+              style={[s.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
               placeholder="Ad Soyad"
               placeholderTextColor={C.textMuted}
               value={fullName}
               onChangeText={setFullName}
             />
             <TextInput
-              style={s.input}
+              style={[s.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
               placeholder="Email"
               placeholderTextColor={C.textMuted}
               value={email}
@@ -119,69 +120,92 @@ export default function App() {
               autoCapitalize="none"
             />
             <TextInput
-              style={s.input}
-              placeholder="Sifre (min 8 karakter)"
+              style={[s.input, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+              placeholder="Şifre (min 8 karakter)"
               placeholderTextColor={C.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
             <TouchableOpacity style={s.checkRow} onPress={() => setKvkk(!kvkk)}>
-              <View style={[s.checkbox, kvkk && s.checkboxOn]}>
-                {kvkk && <Text style={{ color: C.white, fontSize: 11 }}>✓</Text>}
+              <View style={[s.checkbox, { borderColor: C.border }, kvkk && { backgroundColor: C.primary, borderColor: C.primary }]}>
+                {kvkk && <Text style={{ color: '#fff', fontSize: 11 }}>✓</Text>}
               </View>
-              <Text style={s.checkLabel}>KVKK onayini kabul ediyorum</Text>
+              <Text style={[s.checkLabel, { color: C.textSecondary }]}>KVKK onayını kabul ediyorum</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.btn, !canRegister && s.btnDisabled]}
+              style={[s.btn, { backgroundColor: C.primary }, !canRegister && s.btnDisabled]}
               disabled={!canRegister}
-              onPress={() => setRoute('dashboard')}
+              onPress={async () => {
+                try {
+                  const res = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      email,
+                      password,
+                      full_name: fullName,
+                      kvkk_accepted: kvkk,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    setRoute('dashboard');
+                  } else {
+                    setError(data.detail?.message || 'Kayıt başarısız.');
+                  }
+                } catch {
+                  setError('Sunucuya bağlanılamadı.');
+                }
+              }}
             >
-              <Text style={s.btnText}>Kayit Ol</Text>
+              <Text style={s.btnText}>Kayıt Ol</Text>
             </TouchableOpacity>
+            {error ? <Text style={[s.error, { marginTop: 8 }]}>{error}</Text> : null}
           </View>
           <View style={s.switchRow}>
-            <Text style={s.switchText}>Zaten hesabin var mi? </Text>
+            <Text style={[s.switchText, { color: C.textSecondary }]}>Zaten hesabın var mı? </Text>
             <TouchableOpacity onPress={() => setRoute('login')}>
-              <Text style={s.link}>Giris Yap</Text>
+              <Text style={[s.link, { color: C.primary }]}>Giriş Yap</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { padding: 24, paddingTop: 48 },
-  logo: { fontSize: 28, fontWeight: '600', color: C.primary, marginBottom: 4 },
-  subtitle: { fontSize: 14, color: C.textSecondary, marginBottom: 24 },
-  card: {
-    backgroundColor: C.white, borderRadius: 16,
-    padding: 24, marginBottom: 16,
-    borderWidth: 1, borderColor: C.border,
-  },
-  cardTitle: { fontSize: 18, fontWeight: '600', color: C.navy, marginBottom: 16 },
+  logo: { fontSize: 28, fontWeight: '600', marginBottom: 4 },
+  subtitle: { fontSize: 14, marginBottom: 24 },
+  card: { borderRadius: 16, padding: 24, marginBottom: 16, borderWidth: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
   input: {
-    height: 48, borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 8, paddingHorizontal: 14, fontSize: 14,
-    color: C.navy, marginBottom: 12, backgroundColor: C.white,
+    height: 48, borderWidth: 1.5, borderRadius: 8,
+    paddingHorizontal: 14, fontSize: 14, marginBottom: 12,
   },
   checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   checkbox: {
-    width: 20, height: 20, borderRadius: 4,
-    borderWidth: 1.5, borderColor: C.border,
+    width: 20, height: 20, borderRadius: 4, borderWidth: 1.5,
     marginRight: 8, alignItems: 'center', justifyContent: 'center',
   },
-  checkboxOn: { backgroundColor: C.primary, borderColor: C.primary },
-  checkLabel: { fontSize: 13, color: C.textSecondary, flex: 1 },
-  btn: { height: 48, backgroundColor: C.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  checkLabel: { fontSize: 13, flex: 1 },
+  btn: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.45 },
-  btnText: { color: C.white, fontSize: 15, fontWeight: '600' },
+  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
-  switchText: { fontSize: 13, color: C.textSecondary },
-  link: { fontSize: 13, color: C.primary, fontWeight: '500' },
-  error: { fontSize: 12, color: C.danger, marginBottom: 12 },
+  switchText: { fontSize: 13 },
+  link: { fontSize: 13, fontWeight: '500' },
+  error: { fontSize: 12, color: '#EF4444', marginBottom: 12 },
 });
