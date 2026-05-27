@@ -21,21 +21,24 @@ export function DashboardScreen({ onLogout, onNavigate }: Props) {
   const [recent, setRecent] = useState<any[]>([]);
   const [insight, setInsight] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchData = async () => {
     try {
-      const [s, w, c, r, i] = await Promise.all([
+      const [s, w, c, r, i, notifData] = await Promise.all([
         apiRequest('/dashboard/summary'),
         apiRequest('/dashboard/chart/weekly'),
         apiRequest('/dashboard/chart/category'),
         apiRequest('/dashboard/recent'),
         apiRequest('/insights/latest'),
+        apiRequest('/notifications'),
       ]);
       setSummary(s);
       setWeekly(w.days || []);
       setCategories(c.categories || []);
       setRecent(r.transactions || []);
       setInsight(i);
+      setUnreadCount(notifData?.unread_count || 0);
     } catch (e) {
       console.log('Dashboard fetch error:', e);
     } finally {
@@ -64,9 +67,9 @@ export function DashboardScreen({ onLogout, onNavigate }: Props) {
         <View style={s.headerRight}>
           <TouchableOpacity style={s.bellBtn} onPress={() => setShowNotifications(true)}>
             <Text style={{ fontSize: 22 }}>🔔</Text>
-            <View style={s.bellBadge}>
-              <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>2</Text>
-            </View>
+            {unreadCount > 0 && <View style={s.bellBadge}>
+              <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
+            </View>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onNavigate?.('profile')}>
             <View style={[s.avatar, { backgroundColor: C.primaryLight }]}>

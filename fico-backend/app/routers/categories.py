@@ -18,3 +18,31 @@ def list_categories(
         (Category.user_id == user_id) | (Category.is_system == True)
     ).order_by(Category.sort_order).all()
     return [{"id": c.id, "name": c.name, "icon": c.icon, "color": c.color} for c in cats]
+
+from fastapi import HTTPException
+from pydantic import BaseModel
+
+class CategoryCreate(BaseModel):
+    name: str
+    icon: str = '📦'
+    color: str = '#F3F4F6'
+
+@router.post('')
+def create_category(
+    payload: CategoryCreate,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    import uuid
+    cat = Category(
+        id=str(uuid.uuid4()),
+        name=payload.name.strip(),
+        icon=payload.icon,
+        color=payload.color,
+        is_system=False,
+        user_id=user_id,
+    )
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
+    return {'id': cat.id, 'name': cat.name, 'icon': cat.icon, 'color': cat.color}
