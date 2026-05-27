@@ -3,28 +3,18 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   SafeAreaView, ActivityIndicator, RefreshControl
 } from 'react-native';
-import { TransactionScreen } from './TransactionScreen';
-import { GoalsScreen } from './GoalsScreen';
-import { ProfileScreen } from './ProfileScreen';
-import { IncomeScreen } from './IncomeScreen';
 import { QuickExpenseModal } from './QuickExpenseModal';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useTheme } from '../ThemeContext';
 import { apiRequest } from '../services/api';
 
-type Props = { onLogout: () => void };
+type Props = { onLogout: () => void; onNavigate?: (tab: string) => void };
 
-export function DashboardScreen({ onLogout }: Props) {
+export function DashboardScreen({ onLogout, onNavigate }: Props) {
   const { theme: C } = useTheme();
-  const [activeTab, setActiveTab] = useState('home');
-  const [showTransactions, setShowTransactions] = useState(false);
-  const [showGoals, setShowGoals] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showIncome, setShowIncome] = useState(false);
   const [showQuickExpense, setShowQuickExpense] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
   const [summary, setSummary] = useState<any>(null);
   const [weekly, setWeekly] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -58,10 +48,6 @@ export function DashboardScreen({ onLogout }: Props) {
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
-  if (showTransactions) return <TransactionScreen onBack={() => setShowTransactions(false)} />;
-  if (showGoals) return <GoalsScreen onBack={() => setShowGoals(false)} />;
-  if (showProfile) return <ProfileScreen onLogout={onLogout} onBack={() => setShowProfile(false)} />;
-  if (showIncome) return <IncomeScreen onBack={() => setShowIncome(false)} />;
   if (showNotifications) return <NotificationsScreen onBack={() => setShowNotifications(false)} />;
 
   const MAX = weekly.length > 0 ? Math.max(...weekly.map((d: any) => d.tutar || 0), 1) : 1;
@@ -70,7 +56,6 @@ export function DashboardScreen({ onLogout }: Props) {
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
-
       <View style={[s.header, { backgroundColor: C.surface, borderBottomColor: C.border }]}>
         <View>
           <Text style={[s.logo, { color: C.primary }]}>FiCo AI</Text>
@@ -83,9 +68,9 @@ export function DashboardScreen({ onLogout }: Props) {
               <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>2</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowProfile(true)}>
+          <TouchableOpacity onPress={() => onNavigate?.('profile')}>
             <View style={[s.avatar, { backgroundColor: C.primaryLight }]}>
-              <Text style={[s.avatarText, { color: C.primaryDark }]}>HS</Text>
+              <Text style={[s.avatarText, { color: C.primaryDark }]}>👤</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -98,10 +83,9 @@ export function DashboardScreen({ onLogout }: Props) {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
         >
-
           <View style={[s.summaryCard, { backgroundColor: C.primary }]}>
             <Text style={s.summaryLabel}>Net Bakiye</Text>
             <Text style={s.summaryAmount}>₺{(summary?.net_balance || 0).toLocaleString('tr-TR')}</Text>
@@ -188,7 +172,7 @@ export function DashboardScreen({ onLogout }: Props) {
           <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
             <View style={s.cardHeader}>
               <Text style={[s.cardTitle, { color: C.textPrimary }]}>Son İşlemler</Text>
-              <TouchableOpacity onPress={() => setShowTransactions(true)}>
+              <TouchableOpacity onPress={() => onNavigate?.('transactions')}>
                 <Text style={[s.cardLink, { color: C.primary }]}>Tümünü Gör</Text>
               </TouchableOpacity>
             </View>
@@ -202,7 +186,7 @@ export function DashboardScreen({ onLogout }: Props) {
               recent.map((tx: any, i: number) => (
                 <View key={tx.id} style={[s.txRow, i < recent.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.neutral }]}>
                   <View style={[s.txIcon, { backgroundColor: '#E0F7F8' }]}>
-                    <Text style={{ fontSize: 18 }}>💰</Text>
+                    <Text style={{ fontSize: 18 }}>{tx.type === 'income' ? '💰' : '💸'}</Text>
                   </View>
                   <View style={s.txInfo}>
                     <Text style={[s.txName, { color: C.textPrimary }]}>{tx.note || 'İşlem'}</Text>
@@ -240,36 +224,8 @@ export function DashboardScreen({ onLogout }: Props) {
               </View>
             )}
           </View>
-
         </ScrollView>
       )}
-
-      <View style={[s.bottomNav, { backgroundColor: C.surface, borderTopColor: C.border }]}>
-        {[
-          { key: 'home',    icon: '🏠', label: 'Ana Sayfa' },
-          { key: 'expense', icon: '💸', label: 'Giderler'  },
-          { key: 'income',  icon: '💰', label: 'Gelir'     },
-          { key: 'goals',   icon: '🎯', label: 'Hedefler'  },
-          { key: 'profile', icon: '👤', label: 'Profil'    },
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={s.tabItem}
-            onPress={() => {
-              if (tab.key === 'expense') setShowTransactions(true);
-              else if (tab.key === 'goals') setShowGoals(true);
-              else if (tab.key === 'profile') setShowProfile(true);
-              else if (tab.key === 'income') setShowIncome(true);
-              else setActiveTab(tab.key);
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>{tab.icon}</Text>
-            <Text style={[s.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       <TouchableOpacity style={s.fab} onPress={() => setShowQuickExpense(true)}>
         <Text style={s.fabText}>+</Text>
@@ -280,7 +236,6 @@ export function DashboardScreen({ onLogout }: Props) {
         onClose={() => setShowQuickExpense(false)}
         onSaved={() => { setShowQuickExpense(false); fetchData(); }}
       />
-
     </SafeAreaView>
   );
 }
@@ -343,14 +298,8 @@ const s = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 20 },
   emptyText: { fontSize: 14, fontWeight: '500', marginTop: 8 },
   emptySub: { fontSize: 12, marginTop: 4 },
-  bottomNav: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', borderTopWidth: 1, paddingBottom: 20, paddingTop: 8,
-  },
-  tabItem: { flex: 1, alignItems: 'center', gap: 2 },
-  tabLabel: { fontSize: 10 },
   fab: {
-    position: 'absolute', bottom: 80, right: 20,
+    position: 'absolute', bottom: 20, right: 20,
     width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#0EA5B0', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#0EA5B0', shadowOffset: { width: 0, height: 4 },

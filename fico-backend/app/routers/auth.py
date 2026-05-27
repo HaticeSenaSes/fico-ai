@@ -94,18 +94,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         user=UserResponse.model_validate(user),
         next_route=next_route,
     )
-from fastapi import Header
 
 
-from fastapi import Header
+
 
 @router.get("/me")
-def get_me(authorization: str = Header(...), db: Session = Depends(get_db)):
-    token = authorization.replace("Bearer ", "")
-    payload = verify_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Gecersiz token")
-    user = db.query(User).filter(User.id == payload.get("sub")).first()
+def get_me(user_id: str = Depends(verify_token), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Kullanici bulunamadi")
     return {"id": user.id, "email": user.email, "full_name": user.full_name}

@@ -5,14 +5,61 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator
 } from 'react-native';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { TransactionScreen } from './screens/TransactionScreen';
+import { IncomeScreen } from './screens/IncomeScreen';
+import { GoalsScreen } from './screens/GoalsScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { apiRequest, setToken, getToken, removeToken } from './services/api';
 
-type Route = 'register' | 'login' | 'dashboard' | 'loading';
+type Tab = 'dashboard' | 'transactions' | 'income' | 'goals' | 'profile';
+type Route = 'register' | 'login' | 'app' | 'loading';
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'dashboard', label: 'Ana Sayfa', icon: '🏠' },
+  { id: 'transactions', label: 'Giderler', icon: '💸' },
+  { id: 'income', label: 'Gelir', icon: '💰' },
+  { id: 'goals', label: 'Hedefler', icon: '🎯' },
+  { id: 'profile', label: 'Profil', icon: '👤' },
+];
+
+function BottomBar({ active, onPress }: { active: Tab; onPress: (t: Tab) => void }) {
+  const { theme: C } = useTheme();
+  return (
+    <View style={[b.bar, { backgroundColor: C.surface, borderTopColor: C.border }]}>
+      {TABS.map(tab => (
+        <TouchableOpacity
+          key={tab.id}
+          style={b.item}
+          onPress={() => onPress(tab.id)}
+        >
+          <Text style={{ fontSize: 22 }}>{tab.icon}</Text>
+              <View style={[b.activeIndicator, { backgroundColor: active === tab.id ? C.primary : 'transparent' }]} />
+          <Text style={[b.label, { color: active === tab.id ? C.primary : C.textMuted }]}>
+            {tab.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const b = StyleSheet.create({
+  bar: {
+    flexDirection: 'row', borderTopWidth: 1,
+    paddingBottom: 24, paddingTop: 10,
+  },
+  item: { flex: 1, alignItems: 'center', gap: 3 },
+  label: { fontSize: 10, fontWeight: '600' },
+  activeIndicator: {
+    width: 4, height: 4, borderRadius: 2, marginBottom: 2,
+  },
+});
 
 function AppContent() {
   const { theme: C, isDark } = useTheme();
   const [route, setRoute] = useState<Route>('loading');
+  const [tab, setTab] = useState<Tab>('dashboard');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,9 +73,15 @@ function AppContent() {
 
   useEffect(() => {
     getToken().then(token => {
-      setRoute(token ? 'dashboard' : 'register');
+      setRoute(token ? 'app' : 'register');
     });
   }, []);
+
+  const handleLogout = async () => {
+    await removeToken();
+    setTab('dashboard');
+    setRoute('login');
+  };
 
   if (route === 'loading') {
     return (
@@ -39,11 +92,20 @@ function AppContent() {
     );
   }
 
-  if (route === 'dashboard') {
-    return <DashboardScreen onLogout={async () => {
-      await removeToken();
-      setRoute('login');
-    }} />;
+  if (route === 'app') {
+    return (
+      <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
+        <View style={{ flex: 1 }}>
+          {tab === 'dashboard' && <DashboardScreen key={tab === 'dashboard' ? 'active' : 'inactive'} onLogout={handleLogout} onNavigate={setTab} />}
+          {tab === 'transactions' && <TransactionScreen onBack={() => setTab('dashboard')} />}
+          {tab === 'income' && <IncomeScreen onBack={() => setTab('dashboard')} />}
+          {tab === 'goals' && <GoalsScreen onBack={() => setTab('dashboard')} />}
+          {tab === 'profile' && <ProfileScreen onLogout={handleLogout} onBack={() => setTab('dashboard')} />}
+        </View>
+        <BottomBar active={tab} onPress={setTab} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </SafeAreaView>
+    );
   }
 
   if (route === 'login') {
@@ -85,7 +147,7 @@ function AppContent() {
                       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
                     });
                     await setToken(data.access_token);
-                    setRoute('dashboard');
+                    setRoute('app');
                   } catch (e: any) {
                     setError(e?.detail?.message || 'Email veya şifre hatalı.');
                   } finally {
@@ -158,7 +220,7 @@ function AppContent() {
                     body: JSON.stringify({ email, password, full_name: fullName, kvkk_accepted: kvkk }),
                   });
                   await setToken(data.access_token);
-                  setRoute('dashboard');
+                  setRoute('app');
                 } catch (e: any) {
                   setError(e?.detail?.message || 'Kayıt başarısız.');
                 } finally {

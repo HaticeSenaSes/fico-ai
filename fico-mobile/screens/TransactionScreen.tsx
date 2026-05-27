@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, TextInput
+  SafeAreaView, TextInput, ActivityIndicator
 } from 'react-native';
 import { TransactionDetailModal } from './TransactionDetailModal';
+import { apiRequest } from '../services/api';
 
 const C = {
   primary: '#0EA5B0', navy: '#1E3A5F', bg: '#F0FBFC',
@@ -12,38 +13,41 @@ const C = {
 };
 
 type Props = { onBack: () => void };
-
-const TRANSACTIONS = [
-  { id: '1', icon: '🍔', name: 'Starbucks',    cat: 'Yiyecek',  amount: -85,   color: '#FEF3C7', date: '24 Nis' },
-  { id: '2', icon: '💰', name: 'Nisan Bursu',  cat: 'Gelir',    amount: 3500,  color: '#D1FAE5', date: '24 Nis' },
-  { id: '3', icon: '🛒', name: 'Migros',       cat: 'Market',   amount: -320,  color: '#E0F7F8', date: '23 Nis' },
-  { id: '4', icon: '📱', name: 'Netflix',      cat: 'Abonelik', amount: -180,  color: '#EDE9FE', date: '23 Nis' },
-  { id: '5', icon: '🚌', name: 'Metro',        cat: 'Ulaşım',   amount: -45,   color: '#E0F7F8', date: '22 Nis' },
-  { id: '6', icon: '👕', name: 'Zara',         cat: 'Giyim',    amount: -650,  color: '#FEE2E2', date: '22 Nis' },
-  { id: '7', icon: '💰', name: 'Harçlık',      cat: 'Gelir',    amount: 2000,  color: '#D1FAE5', date: '20 Nis' },
-  { id: '8', icon: '🍔', name: 'Burger King',  cat: 'Yiyecek',  amount: -120,  color: '#FEF3C7', date: '20 Nis' },
-];
-
 type Filter = 'all' | 'expense' | 'income';
-type Transaction = typeof TRANSACTIONS[0];
 
 export function TransactionScreen({ onBack }: Props) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
 
-  const filtered = TRANSACTIONS.filter(t => {
-    if (filter === 'expense' && t.amount > 0) return false;
-    if (filter === 'income' && t.amount < 0) return false;
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
-        !t.cat.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+  useEffect(() => { fetchTransactions(); }, [filter]);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filter !== 'all') params.append('type', filter);
+      const data = await apiRequest(`/transactions?${params.toString()}`);
+      setTransactions(data.data || []);
+    } catch (e) {
+      console.log('Transaction fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = transactions.filter(t => {
+    if (!search) return true;
+    return t.note?.toLowerCase().includes(search.toLowerCase());
   });
 
-  const groups: Record<string, typeof TRANSACTIONS> = {};
+  const groups: Record<string, any[]> = {};
   for (const t of filtered) {
-    if (!groups[t.date]) groups[t.date] = [];
-    groups[t.date].push(t);
+    const date = new Date(t.transaction_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(t);
   }
 
   return (
@@ -81,47 +85,54 @@ export function TransactionScreen({ onBack }: Props) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        {Object.entries(groups).map(([date, txs]) => (
-          <View key={date} style={{ marginBottom: 16 }}>
-            <View style={s.groupHeader}>
-              <Text style={s.groupDate}>{date}</Text>
-              <Text style={[s.groupTotal, {
-                color: txs.reduce((s, t) => s + t.amount, 0) >= 0 ? C.success : C.danger
-              }]}>
-                {txs.reduce((s, t) => s + t.amount, 0) >= 0 ? '+' : ''}
-                ₺{Math.abs(txs.reduce((s, t) => s + t.amount, 0)).toLocaleString('tr-TR')}
-              </Text>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={C.primary} />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+          {Object.keys(groups).length === 0 ? (
+            <View style={s.empty}>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>📭</Text>
+              <Text style={s.emptyText}>İşlem bulunamadı</Text>
             </View>
-            <View style={s.card}>
-              {txs.map((tx, i) => (
-                <TouchableOpacity
-                  key={tx.id}
-                  style={[s.txRow, i < txs.length - 1 && s.txBorder]}
-                  onPress={() => setSelectedTx(tx)}
-                >
-                  <View style={[s.txIcon, { backgroundColor: tx.color }]}>
-                    <Text style={{ fontSize: 18 }}>{tx.icon}</Text>
-                  </View>
-                  <View style={s.txInfo}>
-                    <Text style={s.txName}>{tx.name}</Text>
-                    <Text style={s.txCat}>{tx.cat}</Text>
-                  </View>
-                  <Text style={[s.txAmount, { color: tx.amount < 0 ? C.danger : C.success }]}>
-                    {tx.amount < 0 ? '-' : '+'}₺{Math.abs(tx.amount).toLocaleString('tr-TR')}
+          ) : (
+            Object.entries(groups).map(([date, txs]) => (
+              <View key={date} style={{ marginBottom: 16 }}>
+                <View style={s.groupHeader}>
+                  <Text style={s.groupDate}>{date}</Text>
+                  <Text style={[s.groupTotal, {
+                    color: txs.reduce((sum, t) => sum + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0) >= 0 ? C.success : C.danger
+                  }]}>
+                    {txs.reduce((sum, t) => sum + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0) >= 0 ? '+' : ''}
+                    ₺{Math.abs(txs.reduce((sum, t) => sum + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0)).toLocaleString('tr-TR')}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
-        {filtered.length === 0 && (
-          <View style={s.empty}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
-            <Text style={s.emptyText}>Sonuç bulunamadı</Text>
-          </View>
-        )}
-      </ScrollView>
+                </View>
+                <View style={s.card}>
+                  {txs.map((tx, i) => (
+                    <TouchableOpacity
+                      key={tx.id}
+                      style={[s.txRow, i < txs.length - 1 && s.txBorder]}
+                      onPress={() => setSelectedTx(tx)}
+                    >
+                      <View style={[s.txIcon, { backgroundColor: tx.type === 'income' ? '#D1FAE5' : '#E0F7F8' }]}>
+                        <Text style={{ fontSize: 18 }}>{tx.type === 'income' ? '💰' : '💸'}</Text>
+                      </View>
+                      <View style={s.txInfo}>
+                        <Text style={s.txName}>{tx.note || (tx.type === 'income' ? 'Gelir' : 'Gider')}</Text>
+                        <Text style={s.txMeta}>{new Date(tx.transaction_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</Text>
+                      </View>
+                      <Text style={[s.txAmount, { color: tx.type === 'expense' ? C.danger : C.success }]}>
+                        {tx.type === 'expense' ? '-' : '+'}₺{Number(tx.amount).toLocaleString('tr-TR')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
 
       <TransactionDetailModal
         visible={!!selectedTx}
@@ -143,10 +154,7 @@ const s = StyleSheet.create({
   backText: { fontSize: 14, color: C.primary, fontWeight: '500' },
   title: { fontSize: 16, fontWeight: '600', color: C.navy },
   filterBar: { padding: 12, backgroundColor: C.white, borderBottomWidth: 1, borderBottomColor: C.border, gap: 8 },
-  searchWrap: {
-    height: 40, borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 8, paddingHorizontal: 12, justifyContent: 'center',
-  },
+  searchWrap: { height: 40, borderWidth: 1.5, borderColor: C.border, borderRadius: 8, paddingHorizontal: 12, justifyContent: 'center' },
   search: { fontSize: 14, color: C.navy },
   toggle: { flexDirection: 'row', backgroundColor: '#EFF3F5', borderRadius: 8, padding: 3, gap: 2 },
   toggleBtn: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 6 },
@@ -162,7 +170,7 @@ const s = StyleSheet.create({
   txIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   txInfo: { flex: 1 },
   txName: { fontSize: 14, fontWeight: '500', color: C.navy },
-  txCat: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  txMeta: { fontSize: 12, color: C.textMuted, marginTop: 2 },
   txAmount: { fontSize: 14, fontWeight: '500' },
   empty: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { fontSize: 14, color: C.textMuted },
