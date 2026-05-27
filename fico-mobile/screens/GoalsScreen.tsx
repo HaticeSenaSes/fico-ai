@@ -1,29 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, Modal, TextInput
+  SafeAreaView, Modal, TextInput, ActivityIndicator
 } from 'react-native';
 import { GoalDetailModal } from './GoalDetailModal';
+import { apiRequest } from '../services/api';
 
 const C = {
-  primary: '#0EA5B0', primaryLight: '#E0F7F8', primaryDark: '#0B8A94',
+  primary: '#0EA5B0', primaryLight: '#E0F7F8',
   navy: '#1E3A5F', bg: '#F0FBFC', border: '#D9E2E8',
   textSecondary: '#4E6478', textMuted: '#94A3B4',
   danger: '#EF4444', success: '#10B981', warning: '#F59E0B',
   white: '#FFFFFF', neutral: '#EFF3F5',
 };
-
-type Props = { onBack: () => void };
-
-const GOALS = [
-  { id: '1', name: 'Yemek Limiti', type: 'Harcama Limiti', target: 2000, current: 1280, period: 'Nisan 2026', color: '#0EA5B0' },
-  { id: '2', name: 'Tatil Birikimi', type: 'Tasarruf', target: 5000, current: 1200, period: 'Haziran 2026', color: '#10B981' },
-  { id: '3', name: 'Kıyafet Bütçesi', type: 'Kategori Limiti', target: 1000, current: 650, period: 'Nisan 2026', color: '#6366F1' },
-];
-
-const COMPLETED = [
-  { id: '4', name: 'Mart Tasarrufu', type: 'Tasarruf', target: 1000, current: 1000, period: 'Mart 2026', color: '#10B981' },
-];
 
 const GOAL_TYPES = [
   { id: 'spending_limit', label: '💸 Harcama Limiti', desc: 'Belirli bir limite kadar harca' },
@@ -44,16 +33,67 @@ function getStatusLabel(pct: number) {
   return 'Kritik';
 }
 
+type Props = { onBack: () => void };
+
 export function GoalsScreen({ onBack }: Props) {
+  const [goals, setGoals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [goalType, setGoalType] = useState('');
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
-  const [selectedGoal, setSelectedGoal] = useState<typeof GOALS[0] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<any | null>(null);
+
+  useEffect(() => { fetchGoals(); }, []);
+
+  const fetchGoals = async () => {
+    setLoading(true);
+    try {
+      const data = await apiRequest('/goals');
+      setGoals(data.goals || []);
+    } catch (e) {
+      console.log('Goals fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!goalName || !goalTarget || !goalType) return;
+    setSaving(true);
+    try {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      await apiRequest('/goals', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: goalName,
+          goal_type: goalType,
+          target_amount: parseFloat(goalTarget),
+          period_type: 'monthly',
+          period_start: start.toISOString(),
+          period_end: end.toISOString(),
+        }),
+      });
+      setShowAdd(false);
+      setGoalName('');
+      setGoalTarget('');
+      setGoalType('');
+      fetchGoals();
+    } catch (e) {
+      console.log('Goal save error:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeGoals = goals.filter(g => g.is_active);
+  const completedGoals = goals.filter(g => !g.is_active);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
-
       <View style={s.header}>
         <TouchableOpacity onPress={onBack} style={s.backBtn}>
           <Text style={s.backText}>← Geri</Text>
@@ -64,71 +104,79 @@ export function GoalsScreen({ onBack }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-
-        <Text style={s.sectionTitle}>Aktif Hedefler</Text>
-        {GOALS.map(goal => {
-          const pct = Math.round((goal.current / goal.target) * 100);
-          const statusColor = getStatusColor(pct);
-          return (
-            <TouchableOpacity key={goal.id} style={s.goalCard} onPress={() => setSelectedGoal(goal)}>
-              <View style={s.goalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.goalName}>{goal.name}</Text>
-                  <Text style={s.goalType}>{goal.type} · {goal.period}</Text>
-                </View>
-                <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
-                  <Text style={[s.statusText, { color: statusColor }]}>{getStatusLabel(pct)}</Text>
-                </View>
-              </View>
-              <View style={s.progressRow}>
-                <View style={s.progressTrack}>
-                  <View style={[s.progressFill, { width: `${Math.min(pct, 100)}%` as any, backgroundColor: statusColor }]} />
-                </View>
-                <Text style={s.progressPct}>%{pct}</Text>
-              </View>
-              <View style={s.goalFooter}>
-                <Text style={s.goalCurrent}>₺{goal.current.toLocaleString('tr-TR')}</Text>
-                <Text style={s.goalSep}>/</Text>
-                <Text style={s.goalTarget}>₺{goal.target.toLocaleString('tr-TR')}</Text>
-                <View style={{ flex: 1 }} />
-                <Text style={s.goalRemain}>₺{(goal.target - goal.current).toLocaleString('tr-TR')} kaldı</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-
-        <Text style={[s.sectionTitle, { marginTop: 8 }]}>Tamamlananlar</Text>
-        {COMPLETED.map(goal => (
-          <TouchableOpacity key={goal.id} style={[s.goalCard, s.completedCard]} onPress={() => setSelectedGoal(goal)}>
-            <View style={s.goalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.goalName}>{goal.name}</Text>
-                <Text style={s.goalType}>{goal.type} · {goal.period}</Text>
-              </View>
-              <View style={[s.statusBadge, { backgroundColor: C.success + '20' }]}>
-                <Text style={[s.statusText, { color: C.success }]}>✓ Tamam</Text>
-              </View>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={C.primary} />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+          {activeGoals.length === 0 && completedGoals.length === 0 ? (
+            <View style={s.empty}>
+              <Text style={{ fontSize: 48, marginBottom: 12 }}>🎯</Text>
+              <Text style={s.emptyTitle}>Henüz hedef yok</Text>
+              <Text style={s.emptySub}>+ Ekle butonuyla ilk hedefini oluştur</Text>
             </View>
-            <View style={s.progressRow}>
-              <View style={s.progressTrack}>
-                <View style={[s.progressFill, { width: '100%', backgroundColor: C.success }]} />
-              </View>
-              <Text style={s.progressPct}>%100</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+          ) : (
+            <>
+              {activeGoals.length > 0 && (
+                <>
+                  <Text style={s.sectionTitle}>Aktif Hedefler</Text>
+                  {activeGoals.map(goal => {
+                    const pct = goal.current_amount
+                      ? Math.round((goal.current_amount / goal.target_amount) * 100)
+                      : 0;
+                    const statusColor = getStatusColor(pct);
+                    return (
+                      <TouchableOpacity key={goal.id} style={s.goalCard} onPress={() => setSelectedGoal(goal)}>
+                        <View style={s.goalHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.goalName}>{goal.name}</Text>
+                            <Text style={s.goalType}>{goal.goal_type}</Text>
+                          </View>
+                          <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
+                            <Text style={[s.statusText, { color: statusColor }]}>{getStatusLabel(pct)}</Text>
+                          </View>
+                        </View>
+                        <View style={s.progressRow}>
+                          <View style={s.progressTrack}>
+                            <View style={[s.progressFill, { width: `${Math.min(pct, 100)}%` as any, backgroundColor: statusColor }]} />
+                          </View>
+                          <Text style={s.progressPct}>%{pct}</Text>
+                        </View>
+                        <View style={s.goalFooter}>
+                          <Text style={s.goalTarget}>Hedef: ₺{Number(goal.target_amount).toLocaleString('tr-TR')}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              )}
+              {completedGoals.length > 0 && (
+                <>
+                  <Text style={[s.sectionTitle, { marginTop: 8 }]}>Tamamlananlar</Text>
+                  {completedGoals.map(goal => (
+                    <View key={goal.id} style={[s.goalCard, { opacity: 0.7 }]}>
+                      <View style={s.goalHeader}>
+                        <Text style={s.goalName}>{goal.name}</Text>
+                        <View style={[s.statusBadge, { backgroundColor: C.success + '20' }]}>
+                          <Text style={[s.statusText, { color: C.success }]}>✓ Tamam</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </ScrollView>
+      )}
 
-      </ScrollView>
-
-      {/* Hedef Detay Modal */}
       <GoalDetailModal
         visible={!!selectedGoal}
         goal={selectedGoal}
         onClose={() => setSelectedGoal(null)}
       />
 
-      {/* Hedef Ekleme Modal */}
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={[s.safe, { backgroundColor: C.white }]}>
           <View style={s.modalHeader}>
@@ -136,8 +184,8 @@ export function GoalsScreen({ onBack }: Props) {
               <Text style={s.modalCancel}>İptal</Text>
             </TouchableOpacity>
             <Text style={s.modalTitle}>Yeni Hedef</Text>
-            <TouchableOpacity onPress={() => setShowAdd(false)}>
-              <Text style={[s.modalCancel, { color: C.primary }]}>Kaydet</Text>
+            <TouchableOpacity onPress={handleSave} disabled={saving}>
+              <Text style={[s.modalCancel, { color: C.primary }]}>{saving ? '...' : 'Kaydet'}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={s.modalScroll}>
@@ -172,7 +220,6 @@ export function GoalsScreen({ onBack }: Props) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -195,7 +242,6 @@ const s = StyleSheet.create({
     padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: C.border,
   },
-  completedCard: { opacity: 0.7 },
   goalHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   goalName: { fontSize: 15, fontWeight: '600', color: C.navy },
   goalType: { fontSize: 12, color: C.textMuted, marginTop: 2 },
@@ -205,11 +251,11 @@ const s = StyleSheet.create({
   progressTrack: { flex: 1, height: 8, backgroundColor: C.neutral, borderRadius: 99, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99 },
   progressPct: { fontSize: 12, fontWeight: '600', color: C.textSecondary, width: 36, textAlign: 'right' },
-  goalFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  goalCurrent: { fontSize: 14, fontWeight: '600', color: C.navy },
-  goalSep: { fontSize: 14, color: C.textMuted },
-  goalTarget: { fontSize: 14, color: C.textMuted },
-  goalRemain: { fontSize: 12, color: C.textMuted },
+  goalFooter: { flexDirection: 'row', alignItems: 'center' },
+  goalTarget: { fontSize: 13, color: C.textMuted },
+  empty: { alignItems: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: C.navy, marginBottom: 8 },
+  emptySub: { fontSize: 13, color: C.textMuted },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 16, borderBottomWidth: 1, borderBottomColor: C.border,
@@ -223,10 +269,7 @@ const s = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 14, fontSize: 14,
     color: C.navy, marginBottom: 16, backgroundColor: C.white,
   },
-  typeCard: {
-    padding: 14, borderRadius: 12, borderWidth: 1.5,
-    borderColor: C.border, marginBottom: 8,
-  },
+  typeCard: { padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, marginBottom: 8 },
   typeCardActive: { borderColor: C.primary, backgroundColor: C.primaryLight },
   typeLabel: { fontSize: 14, fontWeight: '500', color: C.navy },
   typeDesc: { fontSize: 12, color: C.textMuted, marginTop: 2 },

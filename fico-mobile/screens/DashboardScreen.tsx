@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  SafeAreaView, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { TransactionScreen } from './TransactionScreen';
 import { GoalsScreen } from './GoalsScreen';
@@ -9,36 +10,9 @@ import { IncomeScreen } from './IncomeScreen';
 import { QuickExpenseModal } from './QuickExpenseModal';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useTheme } from '../ThemeContext';
+import { apiRequest } from '../services/api';
 
 type Props = { onLogout: () => void };
-
-const RECENT = [
-  { id: '1', icon: '🍔', name: 'Starbucks',   cat: 'Yiyecek',  amount: -85,   color: '#FEF3C7' },
-  { id: '2', icon: '💰', name: 'Nisan Bursu', cat: 'Gelir',    amount: 3500,  color: '#D1FAE5' },
-  { id: '3', icon: '🛒', name: 'Migros',      cat: 'Market',   amount: -320,  color: '#E0F7F8' },
-  { id: '4', icon: '📱', name: 'Netflix',     cat: 'Abonelik', amount: -180,  color: '#EDE9FE' },
-  { id: '5', icon: '🚌', name: 'Metro',       cat: 'Ulaşım',   amount: -45,   color: '#E0F7F8' },
-];
-
-const CATS = [
-  { name: 'Yiyecek', value: 850, pct: 34, color: '#0EA5B0' },
-  { name: 'Giyim',   value: 650, pct: 26, color: '#10B981' },
-  { name: 'Market',  value: 420, pct: 17, color: '#6366F1' },
-  { name: 'Ulaşım',  value: 320, pct: 13, color: '#F59E0B' },
-  { name: 'Diğer',   value: 260, pct: 10, color: '#94A3B4' },
-];
-
-const WEEKLY = [
-  { gun: 'Pzt', tutar: 120 },
-  { gun: 'Sal', tutar: 85  },
-  { gun: 'Çar', tutar: 320 },
-  { gun: 'Per', tutar: 45  },
-  { gun: 'Cum', tutar: 650 },
-  { gun: 'Cmt', tutar: 180 },
-  { gun: 'Paz', tutar: 95  },
-];
-
-const MAX = 650;
 
 export function DashboardScreen({ onLogout }: Props) {
   const { theme: C } = useTheme();
@@ -49,12 +23,50 @@ export function DashboardScreen({ onLogout }: Props) {
   const [showIncome, setShowIncome] = useState(false);
   const [showQuickExpense, setShowQuickExpense] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [summary, setSummary] = useState<any>(null);
+  const [weekly, setWeekly] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [recent, setRecent] = useState<any[]>([]);
+  const [insight, setInsight] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      const [s, w, c, r, i] = await Promise.all([
+        apiRequest('/dashboard/summary'),
+        apiRequest('/dashboard/chart/weekly'),
+        apiRequest('/dashboard/chart/category'),
+        apiRequest('/dashboard/recent'),
+        apiRequest('/insights/latest'),
+      ]);
+      setSummary(s);
+      setWeekly(w.days || []);
+      setCategories(c.categories || []);
+      setRecent(r.transactions || []);
+      setInsight(i);
+    } catch (e) {
+      console.log('Dashboard fetch error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   if (showTransactions) return <TransactionScreen onBack={() => setShowTransactions(false)} />;
   if (showGoals) return <GoalsScreen onBack={() => setShowGoals(false)} />;
   if (showProfile) return <ProfileScreen onLogout={onLogout} onBack={() => setShowProfile(false)} />;
   if (showIncome) return <IncomeScreen onBack={() => setShowIncome(false)} />;
   if (showNotifications) return <NotificationsScreen onBack={() => setShowNotifications(false)} />;
+
+  const MAX = weekly.length > 0 ? Math.max(...weekly.map((d: any) => d.tutar || 0), 1) : 1;
+  const budgetPct = summary?.budget_pct || 0;
+  const progressColor = budgetPct < 70 ? C.primary : budgetPct < 90 ? '#F59E0B' : '#EF4444';
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
@@ -79,124 +91,158 @@ export function DashboardScreen({ onLogout }: Props) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-
-        <View style={[s.summaryCard, { backgroundColor: C.primary }]}>
-          <Text style={s.summaryLabel}>Net Bakiye</Text>
-          <Text style={s.summaryAmount}>₺2.220</Text>
-          <View style={s.summaryRow}>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryItemLabel}>Gelir</Text>
-              <Text style={[s.summaryItemValue, { color: '#6FECB0' }]}>₺3.500</Text>
-            </View>
-            <View style={s.summaryDivider} />
-            <View style={s.summaryItem}>
-              <Text style={s.summaryItemLabel}>Gider</Text>
-              <Text style={[s.summaryItemValue, { color: '#FCA5A5' }]}>₺1.280</Text>
-            </View>
-            <View style={s.summaryDivider} />
-            <View style={s.summaryItem}>
-              <Text style={s.summaryItemLabel}>Kalan</Text>
-              <Text style={s.summaryItemValue}>₺2.220</Text>
-            </View>
-          </View>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+        >
 
-        <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={s.cardHeader}>
-            <Text style={[s.cardTitle, { color: C.textPrimary }]}>Bütçe Durumu</Text>
-            <View style={s.badge}>
-              <Text style={s.badgeText}>İyi</Text>
+          <View style={[s.summaryCard, { backgroundColor: C.primary }]}>
+            <Text style={s.summaryLabel}>Net Bakiye</Text>
+            <Text style={s.summaryAmount}>₺{(summary?.net_balance || 0).toLocaleString('tr-TR')}</Text>
+            <View style={s.summaryRow}>
+              <View style={s.summaryItem}>
+                <Text style={s.summaryItemLabel}>Gelir</Text>
+                <Text style={[s.summaryItemValue, { color: '#6FECB0' }]}>₺{(summary?.total_income || 0).toLocaleString('tr-TR')}</Text>
+              </View>
+              <View style={s.summaryDivider} />
+              <View style={s.summaryItem}>
+                <Text style={s.summaryItemLabel}>Gider</Text>
+                <Text style={[s.summaryItemValue, { color: '#FCA5A5' }]}>₺{(summary?.total_expense || 0).toLocaleString('tr-TR')}</Text>
+              </View>
+              <View style={s.summaryDivider} />
+              <View style={s.summaryItem}>
+                <Text style={s.summaryItemLabel}>Kalan</Text>
+                <Text style={s.summaryItemValue}>₺{(summary?.remaining_budget || 0).toLocaleString('tr-TR')}</Text>
+              </View>
             </View>
           </View>
-          <View style={[s.progressTrack, { backgroundColor: C.neutral }]}>
-            <View style={[s.progressFill, { width: '37%', backgroundColor: C.primary }]} />
-          </View>
-          <Text style={[s.progressHint, { color: C.textMuted }]}>%37 kullanıldı · ₺1.280 / ₺3.500 · 6 gün kaldı</Text>
-        </View>
 
-        <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={s.cardHeader}>
-            <Text style={[s.cardTitle, { color: C.textPrimary }]}>Haftalık Harcama</Text>
-            <Text style={[s.cardLink, { color: C.primary }]}>Son 7 gün</Text>
+          <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={s.cardHeader}>
+              <Text style={[s.cardTitle, { color: C.textPrimary }]}>Bütçe Durumu</Text>
+              <View style={[s.badge, { backgroundColor: budgetPct < 70 ? '#D1FAE5' : budgetPct < 90 ? '#FEF3C7' : '#FEE2E2' }]}>
+                <Text style={[s.badgeText, { color: budgetPct < 70 ? '#065f46' : budgetPct < 90 ? '#92400e' : '#991b1b' }]}>
+                  {budgetPct < 70 ? 'İyi' : budgetPct < 90 ? 'Dikkat' : 'Kritik'}
+                </Text>
+              </View>
+            </View>
+            <View style={[s.progressTrack, { backgroundColor: C.neutral }]}>
+              <View style={[s.progressFill, { width: `${Math.min(budgetPct, 100)}%` as any, backgroundColor: progressColor }]} />
+            </View>
+            <Text style={[s.progressHint, { color: C.textMuted }]}>
+              %{budgetPct} kullanıldı · ₺{(summary?.total_expense || 0).toLocaleString('tr-TR')} / ₺{(summary?.total_income || 0).toLocaleString('tr-TR')}
+            </Text>
           </View>
-          <View style={s.barChart}>
-            {WEEKLY.map((d) => (
-              <View key={d.gun} style={s.barItem}>
-                <View style={[s.barTrack, { backgroundColor: C.neutral }]}>
-                  <View style={[s.barFill, { height: `${Math.round((d.tutar / MAX) * 100)}%` as any, backgroundColor: C.primary }]} />
+
+          {weekly.length > 0 && (
+            <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+              <View style={s.cardHeader}>
+                <Text style={[s.cardTitle, { color: C.textPrimary }]}>Haftalık Harcama</Text>
+                <Text style={[s.cardLink, { color: C.primary }]}>Son 7 gün</Text>
+              </View>
+              <View style={s.barChart}>
+                {weekly.map((d: any) => (
+                  <View key={d.gun} style={s.barItem}>
+                    <View style={[s.barTrack, { backgroundColor: C.neutral }]}>
+                      <View style={[s.barFill, {
+                        height: `${Math.round(((d.tutar || 0) / MAX) * 100)}%` as any,
+                        backgroundColor: C.primary
+                      }]} />
+                    </View>
+                    <Text style={[s.barLabel, { color: C.textMuted }]}>{d.gun}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {categories.length > 0 && (
+            <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+              <View style={s.cardHeader}>
+                <Text style={[s.cardTitle, { color: C.textPrimary }]}>Kategoriler</Text>
+                <Text style={[s.cardLink, { color: C.primary }]}>Bu ay</Text>
+              </View>
+              {categories.slice(0, 5).map((cat: any) => {
+                const total = categories.reduce((sum: number, c: any) => sum + c.value, 0);
+                const pct = total > 0 ? Math.round((cat.value / total) * 100) : 0;
+                return (
+                  <View key={cat.name} style={s.catRow}>
+                    <View style={[s.catDot, { backgroundColor: cat.color || C.primary }]} />
+                    <Text style={[s.catName, { color: C.textSecondary }]}>{cat.name}</Text>
+                    <View style={[s.catBarTrack, { backgroundColor: C.neutral }]}>
+                      <View style={[s.catBarFill, { width: `${pct}%` as any, backgroundColor: cat.color || C.primary }]} />
+                    </View>
+                    <Text style={[s.catValue, { color: C.textPrimary }]}>₺{cat.value.toLocaleString('tr-TR')}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={s.cardHeader}>
+              <Text style={[s.cardTitle, { color: C.textPrimary }]}>Son İşlemler</Text>
+              <TouchableOpacity onPress={() => setShowTransactions(true)}>
+                <Text style={[s.cardLink, { color: C.primary }]}>Tümünü Gör</Text>
+              </TouchableOpacity>
+            </View>
+            {recent.length === 0 ? (
+              <View style={s.empty}>
+                <Text style={{ fontSize: 32 }}>📭</Text>
+                <Text style={[s.emptyText, { color: C.textPrimary }]}>Henüz işlem yok</Text>
+                <Text style={[s.emptySub, { color: C.textMuted }]}>FAB ile ilk işlemini ekle</Text>
+              </View>
+            ) : (
+              recent.map((tx: any, i: number) => (
+                <View key={tx.id} style={[s.txRow, i < recent.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.neutral }]}>
+                  <View style={[s.txIcon, { backgroundColor: '#E0F7F8' }]}>
+                    <Text style={{ fontSize: 18 }}>💰</Text>
+                  </View>
+                  <View style={s.txInfo}>
+                    <Text style={[s.txName, { color: C.textPrimary }]}>{tx.note || 'İşlem'}</Text>
+                    <Text style={[s.txCat, { color: C.textMuted }]}>{tx.type === 'expense' ? 'Gider' : 'Gelir'}</Text>
+                  </View>
+                  <Text style={[s.txAmount, { color: tx.type === 'expense' ? '#EF4444' : '#10B981' }]}>
+                    {tx.type === 'expense' ? '-' : '+'}₺{parseFloat(tx.amount).toLocaleString('tr-TR')}
+                  </Text>
                 </View>
-                <Text style={[s.barLabel, { color: C.textMuted }]}>{d.gun}</Text>
-              </View>
-            ))}
+              ))
+            )}
           </View>
-        </View>
 
-        <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={s.cardHeader}>
-            <Text style={[s.cardTitle, { color: C.textPrimary }]}>Kategoriler</Text>
-            <Text style={[s.cardLink, { color: C.primary }]}>Bu ay</Text>
-          </View>
-          {CATS.map((cat) => (
-            <View key={cat.name} style={s.catRow}>
-              <View style={[s.catDot, { backgroundColor: cat.color }]} />
-              <Text style={[s.catName, { color: C.textSecondary }]}>{cat.name}</Text>
-              <View style={[s.catBarTrack, { backgroundColor: C.neutral }]}>
-                <View style={[s.catBarFill, { width: `${cat.pct}%` as any, backgroundColor: cat.color }]} />
-              </View>
-              <Text style={[s.catValue, { color: C.textPrimary }]}>₺{cat.value}</Text>
+          <View style={[s.card, s.insightCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={s.cardHeader}>
+              <Text style={[s.cardTitle, { color: C.textPrimary }]}>✨ AI İçgörü</Text>
             </View>
-          ))}
-        </View>
-
-        <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={s.cardHeader}>
-            <Text style={[s.cardTitle, { color: C.textPrimary }]}>Son İşlemler</Text>
-            <TouchableOpacity onPress={() => setShowTransactions(true)}>
-              <Text style={[s.cardLink, { color: C.primary }]}>Tümünü Gör</Text>
-            </TouchableOpacity>
-          </View>
-          {RECENT.map((tx, i) => (
-            <View key={tx.id} style={[s.txRow, i < RECENT.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.neutral }]}>
-              <View style={[s.txIcon, { backgroundColor: tx.color }]}>
-                <Text style={{ fontSize: 18 }}>{tx.icon}</Text>
+            {insight && insight.body ? (
+              <>
+                <Text style={[s.insightText, { color: C.textPrimary }]}>{insight.body}</Text>
+                <View style={s.feedbackRow}>
+                  <TouchableOpacity style={[s.feedbackBtn, { backgroundColor: C.primaryLight }]}>
+                    <Text>👍</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.feedbackBtn, { backgroundColor: C.neutral }]}>
+                    <Text>👎</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <View style={s.empty}>
+                <Text style={{ fontSize: 32 }}>🤖</Text>
+                <Text style={[s.emptyText, { color: C.textPrimary }]}>İçgörüler hazırlanıyor</Text>
+                <Text style={[s.emptySub, { color: C.textMuted }]}>Daha fazla işlem ekle</Text>
               </View>
-              <View style={s.txInfo}>
-                <Text style={[s.txName, { color: C.textPrimary }]}>{tx.name}</Text>
-                <Text style={[s.txCat, { color: C.textMuted }]}>{tx.cat}</Text>
-              </View>
-              <Text style={[s.txAmount, { color: tx.amount < 0 ? '#EF4444' : '#10B981' }]}>
-                {tx.amount < 0 ? '-' : '+'}₺{Math.abs(tx.amount).toLocaleString('tr-TR')}
-              </Text>
-            </View>
-          ))}
-        </View>
+            )}
+          </View>
 
-        <View style={[s.card, s.insightCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={s.cardHeader}>
-            <Text style={[s.cardTitle, { color: C.textPrimary }]}>✨ AI İçgörü</Text>
-          </View>
-          <Text style={[s.insightText, { color: C.textPrimary }]}>
-            <Text style={{ fontWeight: '600' }}>Cuma akşamları</Text> harcaman hafta ortasına göre{' '}
-            <Text style={{ color: '#EF4444', fontWeight: '600' }}>2.4x</Text> daha yüksek.
-          </Text>
-          <View style={s.feedbackRow}>
-            <TouchableOpacity style={[s.feedbackBtn, { backgroundColor: C.primaryLight }]}>
-              <Text>👍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.feedbackBtn, { backgroundColor: C.neutral }]}>
-              <Text>👎</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={s.insightProgress}>
-            <View style={[s.insightTrack, { backgroundColor: C.neutral }]}>
-              <View style={[s.insightFill, { width: '17%', backgroundColor: C.primary }]} />
-            </View>
-            <Text style={[s.insightCount, { color: C.textMuted }]}>5 / 30 işlem</Text>
-          </View>
-        </View>
-
-      </ScrollView>
+        </ScrollView>
+      )}
 
       <View style={[s.bottomNav, { backgroundColor: C.surface, borderTopColor: C.border }]}>
         {[
@@ -232,7 +278,7 @@ export function DashboardScreen({ onLogout }: Props) {
       <QuickExpenseModal
         visible={showQuickExpense}
         onClose={() => setShowQuickExpense(false)}
-        onSaved={() => setShowQuickExpense(false)}
+        onSaved={() => { setShowQuickExpense(false); fetchData(); }}
       />
 
     </SafeAreaView>
@@ -268,8 +314,8 @@ const s = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   cardTitle: { fontSize: 14, fontWeight: '600' },
   cardLink: { fontSize: 12 },
-  badge: { backgroundColor: '#D1FAE5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
-  badgeText: { fontSize: 11, fontWeight: '500', color: '#065f46' },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
+  badgeText: { fontSize: 11, fontWeight: '500' },
   progressTrack: { height: 8, borderRadius: 99, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99 },
   progressHint: { fontSize: 11, marginTop: 6 },
@@ -292,12 +338,11 @@ const s = StyleSheet.create({
   txAmount: { fontSize: 14, fontWeight: '500' },
   insightCard: { borderLeftWidth: 3, borderLeftColor: '#0EA5B0' },
   insightText: { fontSize: 14, lineHeight: 22, marginBottom: 12 },
-  feedbackRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  feedbackRow: { flexDirection: 'row', gap: 8 },
   feedbackBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 6 },
-  insightProgress: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  insightTrack: { flex: 1, height: 6, borderRadius: 99, overflow: 'hidden' },
-  insightFill: { height: '100%', borderRadius: 99 },
-  insightCount: { fontSize: 11 },
+  empty: { alignItems: 'center', paddingVertical: 20 },
+  emptyText: { fontSize: 14, fontWeight: '500', marginTop: 8 },
+  emptySub: { fontSize: 12, marginTop: 4 },
   bottomNav: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', borderTopWidth: 1, paddingBottom: 20, paddingTop: 8,

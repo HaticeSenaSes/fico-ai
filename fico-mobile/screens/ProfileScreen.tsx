@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   SafeAreaView, Switch, Alert, Modal
 } from 'react-native';
 import { EditProfileModal } from './EditProfileModal';
+import { apiRequest } from '../services/api';
 import { useTheme } from '../ThemeContext';
 
 type Props = { onLogout: () => void; onBack: () => void };
@@ -16,6 +17,11 @@ export function ProfileScreen({ onLogout, onBack }: Props) {
   const [goalAlerts, setGoalAlerts] = useState(true);
   const [recurringAlert, setRecurringAlert] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [user, setUser] = useState<{full_name: string; email: string} | null>(null);
+
+  useEffect(() => {
+    apiRequest("/auth/me").then(setUser).catch(console.log);
+  }, []);
   const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
 
   const handleLogout = () => {
@@ -68,12 +74,12 @@ export function ProfileScreen({ onLogout, onBack }: Props) {
 
         <View style={[s.profileCard, { backgroundColor: C.surface, borderColor: C.border }]}>
           <View style={[s.profileAvatar, { backgroundColor: C.primaryLight }]}>
-            <Text style={[s.profileAvatarText, { color: C.primaryDark }]}>HS</Text>
+            <Text style={[s.profileAvatarText, { color: C.primaryDark }]}>{user?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0,2).toUpperCase() || "?"}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[s.profileName, { color: C.textPrimary }]}>Hatice Sena Ses</Text>
-            <Text style={[s.profileEmail, { color: C.textMuted }]}>haticesena@email.com</Text>
-            <Text style={[s.profileMeta, { color: C.textMuted }]}>Yeditepe Üniversitesi · 4. Sınıf</Text>
+            <Text style={[s.profileName, { color: C.textPrimary }]}>{user?.full_name || "Yükleniyor..."}</Text>
+            <Text style={[s.profileEmail, { color: C.textMuted }]}>{user?.email || ""}</Text>
+            
           </View>
           <TouchableOpacity
             style={[s.editBtn, { backgroundColor: C.primaryLight }]}

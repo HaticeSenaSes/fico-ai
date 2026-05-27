@@ -1,39 +1,30 @@
-from datetime import UTC, datetime, timedelta
-import base64
-import json
-import hmac
-import hashlib
+from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+import os
 
+SECRET_KEY = os.getenv("JWT_SECRET", "fico-ai-super-secret-key")
+ALGORITHM = "HS256"
+ACCESS_TTL_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+REFRESH_TTL_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 
-JWT_SECRET = "dev-secret-change-me"
-ACCESS_TTL_MINUTES = 30
-REFRESH_TTL_DAYS = 30
-
-
-def _b64(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("utf-8").rstrip("=")
-
-
-def _sign(payload: str) -> str:
-    return _b64(hmac.new(JWT_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).digest())
-
-
-def create_token(subject: str, expires_in_seconds: int, token_type: str) -> str:
-    header = {"alg": "HS256", "typ": "JWT"}
-    payload = {
-        "sub": subject,
-        "type": token_type,
-        "exp": int((datetime.now(UTC) + timedelta(seconds=expires_in_seconds)).timestamp()),
-    }
-    encoded_header = _b64(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    encoded_payload = _b64(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{encoded_header}.{encoded_payload}"
-    return f"{signing_input}.{_sign(signing_input)}"
-
+security = HTTPBearer()
 
 def create_access_token(subject: str) -> str:
-    return create_token(subject=subject, expires_in_seconds=ACCESS_TTL_MINUTES * 60, token_type="access")
-
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TTL_MINUTES)
+    return jwt.encode({"sub": subject, "exp": expire, "type": "access"}, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(subject: str) -> str:
-    return create_token(subject=subject, expires_in_seconds=REFRESH_TTL_DAYS * 24 * 3600, token_type="refresh")
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TTL_DAYS)
+    return jwt.encode({"sub": subject, "exp": expire, "type": "refresh"}, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Gecersiz token.")
+        return user_id
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token dogrulanamadi.")

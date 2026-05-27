@@ -1,19 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
-  ScrollView, KeyboardAvoidingView, Platform, SafeAreaView
+  ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator
 } from 'react-native';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { ThemeProvider, useTheme } from './ThemeContext';
+import { apiRequest, setToken, getToken, removeToken } from './services/api';
 
-const API_URL = 'http://127.0.0.1:8001/api/v1';
-
-type Route = 'register' | 'login' | 'dashboard';
+type Route = 'register' | 'login' | 'dashboard' | 'loading';
 
 function AppContent() {
   const { theme: C, isDark } = useTheme();
-  const [route, setRoute] = useState<Route>('register');
+  const [route, setRoute] = useState<Route>('loading');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,11 +20,30 @@ function AppContent() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const canRegister = !!(fullName.trim() && email.includes('@') && password.length >= 8 && kvkk);
 
+  useEffect(() => {
+    getToken().then(token => {
+      setRoute(token ? 'dashboard' : 'register');
+    });
+  }, []);
+
+  if (route === 'loading') {
+    return (
+      <SafeAreaView style={[s.safe, { backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={[s.logo, { color: C.primary }]}>FiCo AI</Text>
+        <ActivityIndicator color={C.primary} style={{ marginTop: 16 }} />
+      </SafeAreaView>
+    );
+  }
+
   if (route === 'dashboard') {
-    return <DashboardScreen onLogout={() => setRoute('login')} />;
+    return <DashboardScreen onLogout={async () => {
+      await removeToken();
+      setRoute('login');
+    }} />;
   }
 
   if (route === 'login') {
@@ -54,32 +72,28 @@ function AppContent() {
                 onChangeText={t => { setLoginPassword(t); setError(''); }}
                 secureTextEntry
               />
-              <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 16 }}>
-                <Text style={[s.link, { color: C.primary }]}>Şifremi unuttum</Text>
-              </TouchableOpacity>
               {error ? <Text style={s.error}>{error}</Text> : null}
               <TouchableOpacity
-                style={[s.btn, { backgroundColor: C.primary }]}
+                style={[s.btn, { backgroundColor: C.primary }, loading && s.btnDisabled]}
+                disabled={loading}
                 onPress={async () => {
                   if (!loginEmail || !loginPassword) { setError('Email ve şifre zorunludur.'); return; }
+                  setLoading(true);
                   try {
-                    const res = await fetch(`${API_URL}/auth/login`, {
+                    const data = await apiRequest('/auth/login', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
                     });
-                    const data = await res.json();
-                    if (res.ok) {
-                      setRoute('dashboard');
-                    } else {
-                      setError(data.detail?.message || 'Email veya şifre hatalı.');
-                    }
-                  } catch {
-                    setError('Sunucuya bağlanılamadı.');
+                    await setToken(data.access_token);
+                    setRoute('dashboard');
+                  } catch (e: any) {
+                    setError(e?.detail?.message || 'Email veya şifre hatalı.');
+                  } finally {
+                    setLoading(false);
                   }
                 }}
               >
-                <Text style={s.btnText}>Giriş Yap</Text>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Giriş Yap</Text>}
               </TouchableOpacity>
             </View>
             <View style={s.switchRow}>
@@ -134,32 +148,25 @@ function AppContent() {
               <Text style={[s.checkLabel, { color: C.textSecondary }]}>KVKK onayını kabul ediyorum</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.btn, { backgroundColor: C.primary }, !canRegister && s.btnDisabled]}
-              disabled={!canRegister}
+              style={[s.btn, { backgroundColor: C.primary }, (!canRegister || loading) && s.btnDisabled]}
+              disabled={!canRegister || loading}
               onPress={async () => {
+                setLoading(true);
                 try {
-                  const res = await fetch(`${API_URL}/auth/register`, {
+                  const data = await apiRequest('/auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      email,
-                      password,
-                      full_name: fullName,
-                      kvkk_accepted: kvkk,
-                    }),
+                    body: JSON.stringify({ email, password, full_name: fullName, kvkk_accepted: kvkk }),
                   });
-                  const data = await res.json();
-                  if (res.ok) {
-                    setRoute('dashboard');
-                  } else {
-                    setError(data.detail?.message || 'Kayıt başarısız.');
-                  }
-                } catch {
-                  setError('Sunucuya bağlanılamadı.');
+                  await setToken(data.access_token);
+                  setRoute('dashboard');
+                } catch (e: any) {
+                  setError(e?.detail?.message || 'Kayıt başarısız.');
+                } finally {
+                  setLoading(false);
                 }
               }}
             >
-              <Text style={s.btnText}>Kayıt Ol</Text>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Kayıt Ol</Text>}
             </TouchableOpacity>
             {error ? <Text style={[s.error, { marginTop: 8 }]}>{error}</Text> : null}
           </View>
@@ -191,15 +198,9 @@ const s = StyleSheet.create({
   subtitle: { fontSize: 14, marginBottom: 24 },
   card: { borderRadius: 16, padding: 24, marginBottom: 16, borderWidth: 1 },
   cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
-  input: {
-    height: 48, borderWidth: 1.5, borderRadius: 8,
-    paddingHorizontal: 14, fontSize: 14, marginBottom: 12,
-  },
+  input: { height: 48, borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, fontSize: 14, marginBottom: 12 },
   checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 4, borderWidth: 1.5,
-    marginRight: 8, alignItems: 'center', justifyContent: 'center',
-  },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
   checkLabel: { fontSize: 13, flex: 1 },
   btn: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.45 },
