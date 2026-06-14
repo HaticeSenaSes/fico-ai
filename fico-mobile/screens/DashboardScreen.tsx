@@ -69,7 +69,7 @@ export function DashboardScreen({ onLogout, onNavigate }: Props) {
             <Text style={{ fontSize: 22 }}>🔔</Text>
             {unreadCount > 0 && <View style={s.bellBadge}>
               <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadCount}</Text>
-            </View>}
+            </View>} 
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onNavigate?.('profile')}>
             <View style={[s.avatar, { backgroundColor: C.primaryLight }]}>

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const API_URL = 'https://quarterly-earmuff-trimmer.ngrok-free.dev/api/v1';
+export const API_URL = 'https://fico-backend-api-production.up.railway.app/api/v1';
 
 export async function getToken(): Promise<string | null> {
   return await AsyncStorage.getItem('access_token');
@@ -21,6 +21,7 @@ export async function apiRequest(
   const token = await getToken();
   const headers: any = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };

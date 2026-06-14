@@ -96,7 +96,7 @@ function AppContent() {
     return (
       <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
         <View style={{ flex: 1 }}>
-          {tab === 'dashboard' && <DashboardScreen key={tab === 'dashboard' ? 'active' : 'inactive'} onLogout={handleLogout} onNavigate={setTab} />}
+          {tab === 'dashboard' && <DashboardScreen key={tab === 'dashboard' ? 'active' : 'inactive'} onLogout={handleLogout} onNavigate={(t: string) => setTab(t as Tab)} />}
           {tab === 'transactions' && <TransactionScreen onBack={() => setTab('dashboard')} />}
           {tab === 'income' && <IncomeScreen onBack={() => setTab('dashboard')} />}
           {tab === 'goals' && <GoalsScreen onBack={() => setTab('dashboard')} />}
