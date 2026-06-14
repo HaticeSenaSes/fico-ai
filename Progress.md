@@ -27,7 +27,5 @@
   - **Token süresi (15 dk)**: geliştirme sırasında sık "Token doğrulanamadı" hatalarına yol açtı, login akışıyla yönetildi.
 - Backend Railway'e deploy edildi (PostgreSQL dahil).
 - Mobile uygulama production API'sine bağlandı.
-- Eksik proje dokümanları (`tech-stack.md`, `Plan.md`, `DesignSystem.md`, `Progress.md`, root `README.md`) tamamlandı.
-
-## AI Kullanımı (Geliştirme Süreci)
+- Eksik proje dokümanları (`tech-stack.md`, `Pleci)
 Proje boyunca Claude Code/Sonnet ile pair-programming şeklinde çalışıldı: backend endpoint tasarımı, React Native ekran bileşenleri, hata ayıklama (SQLAlchemy/FastAPI/Expo build hataları) ve Railway deploy sürecinde aktif olarak kullanıldı.
